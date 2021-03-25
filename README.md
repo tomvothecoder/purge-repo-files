@@ -1,10 +1,9 @@
 # Purge Files from Git
 
-This page covers the process involved in purging large files from the Git history of the `e3sm-diags` project.
+This page covers the process involved in purging large files from the Git history of the E3SM Diagnostics project.
+These steps can be applied to any repository.
 
-The `size-pack` of the `e3sm-diags` repo has grown to over 1 GB, making cloning very slow and cumbersome.
-
-- <https://git-scm.com/docs/git-count-objects>
+The `e3sm-diags` repo has grown to over 1 GB, making cloning very slow and cumbersome.
 
 Resolves GitHub Issue: <https://github.com/E3SM-Project/e3sm_diags/issues/306>
 
@@ -36,7 +35,7 @@ Resolves GitHub Issue: <https://github.com/E3SM-Project/e3sm_diags/issues/306>
 
 ## Step-by-step
 
-1. Clone repo
+1. Clone Repo
 
    ```bash
    # Using the `mirror` flag clones the bare repo, which means your normal files won't be visible, but it is a full copy of the Git database of your repository
@@ -44,7 +43,7 @@ Resolves GitHub Issue: <https://github.com/E3SM-Project/e3sm_diags/issues/306>
    git clone --mirror https://github.com/tomvothecoder/e3sm_diags.git
    ```
 
-2. Backup repo
+2. Backup Repo
 
    ```bash
    # https://stackoverflow.com/a/54040382
@@ -52,20 +51,64 @@ Resolves GitHub Issue: <https://github.com/E3SM-Project/e3sm_diags/issues/306>
    git bundle create e3sm_diags.bundle --all
    ```
 
-3. Check current repo size
+3. Check Current Repo Size with `git-sizer`
 
    ```bash
-   # https://stackoverflow.com/a/16163608
-   $ git gc
-   $ git count-objects -vH
-    count: 0
-    size: 0 bytes
-    in-pack: 28457
-    packs: 1
-    size-pack: 1.13 GiB
-    prune-packable: 0
-    garbage: 0
-    size-garbage: 0 bytes
+   # https://github.com/github/git-sizer/#getting-started
+   $ brew install git-sizer
+   $ git-sizer --verbose
+   Processing blobs: 15246
+   Processing trees: 9572
+   Processing commits: 3035
+   Matching commits to trees: 3035
+   Processing annotated tags: 0
+   Processing references: 38
+   | Name                         | Value     | Level of concern               |
+   | ---------------------------- | --------- | ------------------------------ |
+   | Overall repository size      |           |                                |
+   | * Commits                    |           |                                |
+   |   * Count                    |  3.04 k   |                                |
+   |   * Total size               |   843 KiB |                                |
+   | * Trees                      |           |                                |
+   |   * Count                    |  9.57 k   |                                |
+   |   * Total size               |  3.53 MiB |                                |
+   |   * Total tree entries       |  85.9 k   |                                |
+   | * Blobs                      |           |                                |
+   |   * Count                    |  15.2 k   |                                |
+   |   * Total size               |  1.62 GiB |                                |
+   | * Annotated tags             |           |                                |
+   |   * Count                    |     0     |                                |
+   | * References                 |           |                                |
+   |   * Count                    |    38     |                                |
+   |                              |           |                                |
+   | Biggest objects              |           |                                |
+   | * Commits                    |           |                                |
+   |   * Maximum size         [1] |  1.13 KiB |                                |
+   |   * Maximum parents      [2] |     2     |                                |
+   | * Trees                      |           |                                |
+   |   * Maximum entries      [3] |   864     |                                |
+   | * Blobs                      |           |                                |
+   |   * Maximum size         [4] |  99.4 MiB | **********                     |
+   |                              |           |                                |
+   | History structure            |           |                                |
+   | * Maximum history depth      |   999     |                                |
+   | * Maximum tag depth          |     0     |                                |
+   |                              |           |                                |
+   | Biggest checkouts            |           |                                |
+   | * Number of directories  [5] |  2.44 k   | *                              |
+   | * Maximum path depth     [6] |     8     |                                |
+   | * Maximum path length    [5] |   169 B   | *                              |
+   | * Number of files        [5] |  13.6 k   |                                |
+   | * Total size of files    [5] |  1.73 GiB | *                              |
+   | * Number of symlinks         |     0     |                                |
+   | * Number of submodules       |     0     |                                |
+
+   [1]  a30fee3e12792ed745c56dcfec31752764393352
+   [2]  6d4601db65443fc547825e496b5edea9636f030b (refs/heads/master)
+   [3]  fe6249abbaa449c6592f5dacac887ce49a9fa676 (892dd59884f5fbaba1708c75b6a57545f7750448:acme_diags/plotset5/set5_model_to_model)
+   [4]  002235a12193f7231a02a753b66947a496c6ebb7 (refs/remotes/upstream/more_derived_var_HUC2:tests/system/U_201301_201312.nc)
+   [5]  d81a217f9a4584678a0062131d696f2f3a571f4a (892dd59884f5fbaba1708c75b6a57545f7750448^{tree})
+   [6]  20e4c1535c37c84a69802c44af6a06bc432980c4 (a5d0ee9058cb19e69e061d65f296fe8d12f70bf2^{tree})
    ```
 
 4. Install BFG Repo-Cleaner (Mac)
@@ -76,40 +119,28 @@ Resolves GitHub Issue: <https://github.com/E3SM-Project/e3sm_diags/issues/306>
    brew install bfg
    ```
 
-5. List large commits in history
+5. Export Git History File Sizes (Blobs)
 
    ```bash
+   # Get current commit hash to name the file
+   $ git rev-parse --short HEAD
+   6d4601db
+
    # https://stackoverflow.com/a/42544963
-   # Exclude --to=iec-i for bytes
+   # This shell script displays all blob objects in the repository, sorted from smallest to largest.
+   # Update hash in filename with above output
    $ git rev-list --objects --all |
          git cat-file --batch-check='%(objecttype) %(objectname) %(objectsize) %(rest)' |
          sed -n 's/^blob //p' |
-         sort --numeric-sort --key=2 |
-         cut -c 1-12,41- |
-         $(command -v gnumfmt || echo numfmt) --field=2 --to=iec-i --suffix=B --padding=7 --round=nearest > e3sm_diags_git_files.csv
-
-    # Subset of output
-    7e3db185f9b7  1.0MiB acme_diags/model_to_obs/lat_lon_vector/ERA-Interim/ERA-Interim-TAUY-ANN-global.png
-    467088e7260d  1.2MiB tests/system/TREFHT_185001_185012.nc
-    302351b31870  1.4MiB acme_diags/test_vector1.png
-    5e4138957806  1.7MiB acme_diags/plot/cartopy/test_vector1.png
-    7fe0dc7e01e4  1.8MiB acme_diags/oldfiles/newobs_rlut.tar
-    945f75dd774c  2.3MiB tests/system/TREFHT_201201_201312.nc
-    59894fe5f3fe  6.7MiB tests/T_20161118.beta0.FC5COSP.ne30_ne30.edison_ANN_climo.nc
-    6e12ca84343b  6.8MiB tests/system/T_20161118.beta0.FC5COSP.ne30_ne30.edison_ANN_climo.nc
-    0de240a9c697  7.6MiB acme_diags/tier1b_cloud.tar
-    643365ac8e59  8.3MiB tests/CLD_MISR_20161118.beta0.FC5COSP.ne30_ne30.edison_ANN_climo.nc
-    d1fa2696a553  8.4MiB tests/system/CLD_MISR_20161118.beta0.FC5COSP.ne30_ne30.edison_ANN_climo.nc
-    fe0c75cc7eab   11MiB acme_diags/plotset5/set5_PRECT_GPCP/GPCP_PRECT_ANN_global.pdf
-    7ddd2051268c   11MiB tests/system/ta_ERA-Interim_ANN_198001_201401_climo.nc
-    b01c38406fcd   18MiB tests/system/CLDMISR_ERA-Interim_ANN_198001_201401_climo.nc
-    10d218439b25   23MiB tests/climo/PRECC_200001_201412.nc
-    249a1bc713e4   23MiB tests/climo/PRECL_200001_201412.nc
-    7da9c43ef279   40MiB acme_diags/plotset5/set5_ANN_T200_ECMWF/test_lev.png.pdf
-    002235a12193   99MiB tests/system/U_201301_201312.nc
+         sort --numeric-sort --key=2 > e3sm_diags_git_files_6d4601db.csv
    ```
 
-6. Run BFG Repo-Cleaner
+6. Validate Which File Extensions to Remove
+
+   - Use the `git_file_validation.ipynb` notebook to confirm which file extensions to remove
+   - In our case, we need to remove `.nc`, `.pdf`, `.png`, and `.tar` files
+
+7. Run BFG Repo-Cleaner
 
    ```bash
    # Delete all files with extension `.nc`, `.pdf`, `.png`, or `.tar`
@@ -117,51 +148,22 @@ Resolves GitHub Issue: <https://github.com/E3SM-Project/e3sm_diags/issues/306>
    bfg --delete-files "{*.nc,*.pdf,*.png,*.tar}" ../e3sm_diags.git
    ```
 
-7. Examine the repo and strip out unwanted dirty data
+8. Examine the Repo and Strip Out Unwanted Data
 
    ```bash
    git reflog expire --expire=now --all && git gc --prune=now --aggressive
    ```
 
-8. Push rewritten commits
+9. Push Rewritten Commits
 
    ```bash
    git push --force
    ```
 
-9. Confirm files removed by comparing hashes
-
-   ```Bash
-   # Subset of output from step 6
-                            Before     After
-    -------------------------------------------
-    First modified commit | eec48df7 | 60318b09
-    Last dirty commit     | d6072730 | f41d033c
-   ```
-
-   First modified commit
-
-   - Upstream: <https://github.com/E3SM-Project/e3sm_diags/tree/eec48df7/>
-   - Fork: <https://github.com/tomvothecoder/e3sm_diags/tree/60318b09/>
-
-   Last dirty commit
-
-   - Upstream: <https://github.com/E3SM-Project/e3sm_diags/tree/d6072730/>
-   - Fork: <https://github.com/tomvothecoder/e3sm_diags/tree/f41d033c/>
-
-10. Check updated repo size
+10. Check Updated Repo Size with `git-sizer`
 
     ```bash
-    $ git gc
-    $ git count-objects -vH
-    count: 0
-    size: 0 bytes
-    in-pack: 16778
-    packs: 1
-    size-pack: 22.00 MiB
-    prune-packable: 0
-    garbage: 0
-    size-garbage: 0 bytes
+    git-sizer --verbose
     ```
 
 ### Collaborator Actions
