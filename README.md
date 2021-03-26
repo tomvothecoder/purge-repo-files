@@ -24,15 +24,14 @@ Resolves GitHub Issue: <https://github.com/E3SM-Project/e3sm_diags/issues/306>
 
 ## What to expect
 
-- This is a disruptive action that requires close coordination with collaborators, especially with many forks and clones
 - Large unnecessary OUTPUT files (e.g. `.nc`,`.png`, `pdf`, `.tar`) are purged from the repository, effectively reducing the repo's size
   - By default the BFG doesn't modify the contents of your latest commit on your master (or 'HEAD') branch, even though it will clean all the commits before it
   - This means matches are protected in the latest commit (e.g. docs that need `.png` files)
 - BFG rewrites Git commits, and therefore the project's Git history
-  - From first rewritten commit (parent), every child commit will then differ and have a different hash regardless if it was rewritten or not
-  - This is a result of the parent hash will differ from that point forward
+  - From the first rewritten commit (the parent), every child commit will then differ and have a different hash regardless if it was rewritten or not
 - Git will complain about a divergence between upstream and forked repos since Git tracks commits via commit-hashes
   - **The solution is found under the "Collaborator Actions" section**
+- This can be a disruptive action that requires close coordination with collaborators, especially with many forks and clones
 
 ## Step-by-step
 
